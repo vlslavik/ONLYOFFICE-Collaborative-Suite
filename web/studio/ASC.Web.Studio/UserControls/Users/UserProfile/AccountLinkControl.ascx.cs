@@ -117,7 +117,7 @@ namespace ASC.Web.Studio.UserControls.Users.UserProfile
                     Provider = provider,
                     Url = VirtualPathUtility.ToAbsolute("~/login.ashx")
                           + "?auth=" + provider
-                          + (SettingsView || InviteView || !MobileDetector.IsMobile || provider == ProviderConstants.Google
+                          + (SettingsView || InviteView || !MobileDetector.IsMobile && false//|| provider == ProviderConstants.Google
                                  ? ("&mode=popup&callback=" + ClientCallback)
                                  : ("&mode=Redirect&returnurl=" + HttpUtility.UrlEncode(new Uri(Request.GetUrlRewriter(), "auth.aspx").ToString())))
                 });

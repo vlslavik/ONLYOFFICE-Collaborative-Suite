@@ -147,7 +147,7 @@ namespace ASC.Projects.Data.DAO
                 .Where("p.tenant_id", Tenant)
                 .Where("p.status", ProjectStatus.Open)
                 .OrderBy("p.title", true)
-                .GroupBy("p.id");
+                .GroupBy(ProjectColumns.Select(c => "p." + c).ToArray());
 
             if (!participantId.Equals(Guid.Empty))
             {
@@ -202,6 +202,7 @@ namespace ASC.Projects.Data.DAO
         {
             var query = new SqlQuery(ProjectsTable + " p")
                 .Select(ProjectColumns.Select(c => "p." + c).ToArray())
+                .Select("p.tenant_id")
                 .Select(new SqlQuery(MilestonesTable + " m").SelectCount().Where(Exp.EqColumns("m.tenant_id", "p.tenant_id") & Exp.EqColumns("m.project_id", "p.id")).Where(Exp.Eq("m.status", MilestoneStatus.Open)))
                 .Select(new SqlQuery(TasksTable + " t").SelectCount().Where(Exp.EqColumns("t.tenant_id", "p.tenant_id") & Exp.EqColumns("t.project_id", "p.id")).Where(!Exp.Eq("t.status", TaskStatus.Closed)))
                 .Select(new SqlQuery(ParticipantTable + " pp").SelectCount().Where(Exp.EqColumns("pp.tenant", "p.tenant_id") & Exp.EqColumns("pp.project_id", "p.id") & Exp.Eq("pp.removed", false)))
@@ -541,7 +542,7 @@ namespace ASC.Projects.Data.DAO
                             TenantUtil.DateTimeToUtc(project.CreateOn),
                             project.LastModifiedBy.ToString(),
                             TenantUtil.DateTimeToUtc(project.LastModifiedOn))
-                        .InColumnValue("status_changed", project.StatusChangedOn)
+                        .InColumnValue("status_changed", TenantUtil.DateTimeToUtc(project.StatusChangedOn, DateTime.Now))
                         .Identity(1, 0, true);
                     project.ID = db.ExecuteScalar<int>(insert);
 

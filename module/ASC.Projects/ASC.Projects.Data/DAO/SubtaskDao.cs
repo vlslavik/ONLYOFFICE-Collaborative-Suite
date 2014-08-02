@@ -159,11 +159,11 @@ namespace ASC.Projects.Data.DAO
             }
         }
 
-        public virtual Subtask Save(Subtask subtask)
+               public virtual Subtask Save(Subtask subtask)
         {
             using (var db = new DbManager(DatabaseId))
             {
-                using (var tr = db.Connection.BeginTransaction())
+                using (var tr = db.BeginTransaction())
                 {
                     var insert = Insert(SubtasksTable)
                         .InColumnValue("id", subtask.ID)
@@ -175,7 +175,7 @@ namespace ASC.Projects.Data.DAO
                         .InColumnValue("create_on", TenantUtil.DateTimeToUtc(subtask.CreateOn))
                         .InColumnValue("last_modified_by", subtask.LastModifiedBy.ToString())
                         .InColumnValue("last_modified_on", TenantUtil.DateTimeToUtc(subtask.LastModifiedOn))
-                        .InColumnValue("status_changed", TenantUtil.DateTimeToUtc(subtask.StatusChangedOn))
+                        .InColumnValue("status_changed", TenantUtil.DateTimeToUtc(subtask.StatusChangedOn, DateTime.Now))
                         .Identity(1, 0, true);
 
                     subtask.ID = db.ExecuteScalar<int>(insert);
@@ -188,6 +188,7 @@ namespace ASC.Projects.Data.DAO
                 }
             }
         }
+
 
         public void CloseAllSubtasks(Task task)
         {

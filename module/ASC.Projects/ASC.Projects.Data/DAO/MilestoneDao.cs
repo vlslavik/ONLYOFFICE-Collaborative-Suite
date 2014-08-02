@@ -277,7 +277,7 @@ namespace ASC.Projects.Data.DAO
                     .InColumnValue("is_notify", milestone.IsNotify)
                     .InColumnValue("is_key", milestone.IsKey)
                     .InColumnValue("description", milestone.Description)
-                    .InColumnValue("status_changed", milestone.StatusChangedOn)
+                    .InColumnValue("status_changed", TenantUtil.DateTimeToUtc(milestone.StatusChangedOn, DateTime.Now))
                     .InColumnValue("responsible_id", milestone.Responsible.ToString())
                     .Identity(1, 0, true);
                 milestone.ID = db.ExecuteScalar<int>(insert);
@@ -324,13 +324,31 @@ namespace ASC.Projects.Data.DAO
             }
         }
 
+/*      private SqlQuery CreateQuery()
+        {
+            return new SqlQuery(MilestonesTable + " t")
+                .InnerJoin(ProjectsTable + " p", Exp.EqColumns("t.project_id", "p.id") & Exp.EqColumns("t.tenant_id", "p.tenant_id"))
+                .LeftOuterJoin(TasksTable + " as pt", Exp.EqColumns("pt.milestone_id", "t.id"))
+                .Select(ProjectDao.ProjectColumns.Select(c => "p." + c).ToArray())
+                .Select("t.id", "t.title", "t.create_by", "t.create_on", "t.last_modified_by", "t.last_modified_on")
+                .Select("t.deadline", "t.status", "t.is_notify", "t.is_key", "t.description", "t.responsible_id")
+                .SelectSum(String.Format("case pt.responsible_id when '{0}' then 1 else 0 end", CurrentUserID))
+                .SelectSum("case pt.status when 1 then 1 when 4 then 1 else 0 end")
+                .SelectSum("case pt.status when 2 then 1 else 0 end")
+                //.GroupBy("t.id")
+                .GroupBy(ProjectDao.ProjectColumns.Select(c => "p." + c).ToArray())
+                .GroupBy("t.id", "t.title", "t.create_by", "t.create_on", "t.last_modified_by", "t.last_modified_on")
+                .GroupBy("t.deadline", "t.status", "t.is_notify", "t.is_key", "t.description", "t.responsible_id")
+                .Where("t.tenant_id", Tenant);
+	}
+*/
         private SqlQuery CreateQuery()
         {
             return new SqlQuery(MilestonesTable + " t")
                 .InnerJoin(ProjectsTable + " p", Exp.EqColumns("t.tenant_id", "p.tenant_id") & Exp.EqColumns("t.project_id", "p.id"))
                 .Select(ProjectDao.ProjectColumns.Select(c => "p." + c).ToArray())
                 .Select("t.id", "t.title", "t.create_by", "t.create_on", "t.last_modified_by", "t.last_modified_on")
-                .Select("t.deadline", "t.status", "t.is_notify", "t.is_key", "t.description", "t.responsible_id")
+                .Select("t.deadline", "t.status", "t.is_notify", "t.is_key", "t.description", "t.responsible_id", "t.tenant_id")
                 .Select("(select sum(case pt1.status when 1 then 1 when 4 then 1 else 0 end) from projects_tasks pt1 where pt1.tenant_id = t.tenant_id and  pt1.milestone_id=t.id)")
                 .Select("(select sum(case pt2.status when 2 then 1 else 0 end) from projects_tasks pt2 where pt2.tenant_id = t.tenant_id and  pt2.milestone_id=t.id)")
                 .GroupBy("t.id")

@@ -191,12 +191,12 @@ namespace ASC.Files.Core.Data
 
         protected Guid ParseRootFolderCreator(object v)
         {
-            return v != null ? new Guid(v.ToString().Substring(1, 36)) : default(Guid);
+            return v != null ? new Guid(v.ToString().Substring(2).Trim().Substring(0, 36)) : default(Guid);
         }
 
         protected int ParseRootFolderId(object v)
         {
-            return v != null ? int.Parse(v.ToString().Substring(1 + 36)) : default(int);
+            return v != null ? int.Parse(v.ToString().Substring(2).Trim().Substring(0, 36)) : default(int);
         }
 
         protected SqlQuery GetSharedQuery(FileEntryType type)

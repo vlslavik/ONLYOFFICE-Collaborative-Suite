@@ -246,7 +246,7 @@ namespace ASC.CRM.Core.Dao
         public bool IsExist(int id)
         {
             var q = new SqlExp(
-                    string.Format(@"select exists(select 1 from crm_field_description where tenant_id = {0} and id = {1})",
+                    string.Format(@"select 1 where exists(select 1 from crm_field_description where tenant_id = {0} and id = {1})",
                                 TenantID,
                                 id));
 
