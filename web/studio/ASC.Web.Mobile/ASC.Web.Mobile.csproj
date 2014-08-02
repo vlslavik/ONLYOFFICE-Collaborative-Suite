@@ -8,6 +8,7 @@
     <IISExpressAnonymousAuthentication />
     <IISExpressWindowsAuthentication />
     <IISExpressUseClassicPipelineMode />
+    <MvcProjectUpgradeChecked>true</MvcProjectUpgradeChecked>
   </PropertyGroup>
   <UsingTask TaskName="CssCompressorTask" AssemblyFile="..\..\..\redistributable\third-party\YUICompressor\Yahoo.Yui.Compressor.Build.MsBuild.dll" />
   <UsingTask TaskName="JavaScriptCompressorTask" AssemblyFile="..\..\..\redistributable\third-party\YUICompressor\Yahoo.Yui.Compressor.Build.MsBuild.dll" />

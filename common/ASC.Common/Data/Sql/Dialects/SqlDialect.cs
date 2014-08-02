@@ -1,32 +1,19 @@
-/*
-(c) Copyright Ascensio System SIA 2010-2014
+/* 
+ * 
+ * (c) Copyright Ascensio System Limited 2010-2014
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * http://www.gnu.org/licenses/agpl.html 
+ * 
+ */
 
-This program is a free software product.
-You can redistribute it and/or modify it under the terms 
-of the GNU Affero General Public License (AGPL) version 3 as published by the Free Software
-Foundation. In accordance with Section 7(a) of the GNU AGPL its Section 15 shall be amended
-to the effect that Ascensio System SIA expressly excludes the warranty of non-infringement of 
-any third-party rights.
-
-This program is distributed WITHOUT ANY WARRANTY; without even the implied warranty 
-of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For details, see 
-the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
-
-You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia, EU, LV-1021.
-
-The  interactive user interfaces in modified source and object code versions of the Program must 
-display Appropriate Legal Notices, as required under Section 5 of the GNU AGPL version 3.
- 
-Pursuant to Section 7(b) of the License you must retain the original Product logo when 
-distributing the program. Pursuant to Section 7(e) we decline to grant you any rights under 
-trademark law for use of our trademarks.
- 
-All the Product's GUI elements, including illustrations and icon sets, as well as technical writing
-content are licensed under the terms of the Creative Commons Attribution-ShareAlike 4.0
-International. See the License terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
-*/
-
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Text;
 
 namespace ASC.Common.Data.Sql
@@ -54,7 +41,7 @@ namespace ASC.Common.Data.Sql
 
         public virtual bool SupportMultiTableUpdate
         {
-            get { return true; }
+            get { return false; }
         }
 
         public virtual bool SeparateCreateIndex
@@ -77,10 +64,51 @@ namespace ASC.Common.Data.Sql
         {
             return il;
         }
+        public bool ReplaceEnabled
+        {
+            get { return true; }
+        }
 
+        private static SortedDictionary<string, List<string>> keys = new SortedDictionary<string, List<string>>();
+
+        public List<string> GetPrimaryKeyColumns(string tablename)
+        {
+            List<string> ret;
+            if (keys.TryGetValue(tablename.ToLower(), out ret))
+                return ret;
+            else
+                return null;
+        }
+
+        private static SortedDictionary<string, List<string>> LoadKeys(DbManager dbManager)
+        {
+            var x = new SortedDictionary<string, List<string>>();
+            var ret = dbManager.ExecuteList("SELECT lower(table_name), lower(column_name) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE OBJECTPROPERTY(OBJECT_ID(constraint_name), 'IsPrimaryKey') = 1");
+            foreach (var r in ret)
+            {
+                if (!x.ContainsKey((string)r[0]))
+                    x.Add((string)r[0], new List<string>());
+                x[(string)r[0]].Add((string)r[1]);
+            }
+
+            return x;
+        }
+
+        internal static void CheckKeys(DbManager dbManager)
+        {
+            if (keys.Count == 0)
+                lock (keys)
+                {
+                    if (keys.Count == 0)
+                    {
+                        keys = LoadKeys(dbManager);
+                    }
+                }
+        }
         public string UseIndex(string index)
         {
             return string.Empty;
         }
+
     }
 }

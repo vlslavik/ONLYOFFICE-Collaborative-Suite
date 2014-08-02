@@ -1,30 +1,15 @@
-/*
-(c) Copyright Ascensio System SIA 2010-2014
-
-This program is a free software product.
-You can redistribute it and/or modify it under the terms 
-of the GNU Affero General Public License (AGPL) version 3 as published by the Free Software
-Foundation. In accordance with Section 7(a) of the GNU AGPL its Section 15 shall be amended
-to the effect that Ascensio System SIA expressly excludes the warranty of non-infringement of 
-any third-party rights.
-
-This program is distributed WITHOUT ANY WARRANTY; without even the implied warranty 
-of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For details, see 
-the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
-
-You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia, EU, LV-1021.
-
-The  interactive user interfaces in modified source and object code versions of the Program must 
-display Appropriate Legal Notices, as required under Section 5 of the GNU AGPL version 3.
- 
-Pursuant to Section 7(b) of the License you must retain the original Product logo when 
-distributing the program. Pursuant to Section 7(e) we decline to grant you any rights under 
-trademark law for use of our trademarks.
- 
-All the Product's GUI elements, including illustrations and icon sets, as well as technical writing
-content are licensed under the terms of the Creative Commons Attribution-ShareAlike 4.0
-International. See the License terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
-*/
+/* 
+ * 
+ * (c) Copyright Ascensio System Limited 2010-2014
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * http://www.gnu.org/licenses/agpl.html 
+ * 
+ */
 
 using System;
 using System.Collections.Generic;
@@ -39,6 +24,8 @@ namespace ASC.Common.Data.Sql
         private readonly List<string> columns = new List<string>();
         private readonly string table;
         private readonly List<object> values = new List<object>();
+        private List<object> valuesReplace = null;
+
         private int identityPosition = -1;
         private object nullValue;
         private SqlQuery query;
@@ -48,7 +35,7 @@ namespace ASC.Common.Data.Sql
 
 
         public SqlInsert(string table)
-            : this(table, false)
+            : this(table, true)
         {
         }
 
@@ -58,10 +45,180 @@ namespace ASC.Common.Data.Sql
             ReplaceExists(replaceExists);
         }
 
+        //public string ToStringOld(ISqlDialect dialect)
+        //{
+        //    var sql = new StringBuilder();
+
+        //    if (ignoreExists)
+        //    {
+        //        sql.Append(dialect.InsertIgnore);
+        //    }
+        //    else
+        //    {
+        //        sql.Append(replaceExists ? "replace" : "insert");
+        //    }
+        //    sql.AppendFormat(" into {0}", table);
+        //    bool identityInsert = IsIdentityInsert();
+        //    if (0 < columns.Count)
+        //    {
+        //        sql.Append("(");
+        //        for (int i = 0; i < columns.Count; i++)
+        //        {
+        //            if (identityInsert && identityPosition == i) continue;
+        //            sql.AppendFormat("{0},", columns[i]);
+        //        }
+        //        sql.Remove(sql.Length - 1, 1).Append(")");
+        //    }
+        //    if (query != null)
+        //    {
+        //        sql.AppendFormat(" {0}", query.ToString(dialect));
+        //        return sql.ToString();
+        //    }
+        //    sql.Append(" values (");
+        //    for (int i = 0; i < values.Count; i++)
+        //    {
+        //        if (identityInsert && identityPosition == i)
+        //        {
+        //            continue;
+        //        }
+        //        sql.Append("?");
+        //        if (i + 1 == values.Count)
+        //        {
+        //            sql.Append(")");
+        //        }
+        //        else if (0 < columns.Count && (i + 1) % columns.Count == 0)
+        //        {
+        //            sql.Append("),(");
+        //        }
+        //        else
+        //        {
+        //            sql.Append(",");
+        //        }
+        //    }
+
+        //    if (returnIdentity)
+        //    {
+        //        sql.AppendFormat("; select {0}", identityInsert ? dialect.IdentityQuery : "?");
+        //    }
+        //    return sql.ToString();
+        //}
 
         public string ToString(ISqlDialect dialect)
         {
             var sql = new StringBuilder();
+
+            //if (IsUpdate() && !dialect.ReplaceEnabled)
+            //{
+            //    sql.AppendFormat("update {0} set ", table);
+            //    for (int i = 0; i < columns.Count; i++)
+            //    {
+            //        if (identityPosition == i) continue;
+            //        sql.AppendFormat("{0} = ?", columns[i]);
+            //        if (i < columns.Count - 1)
+            //            sql.Append(",");
+            //    }
+            //    sql.AppendFormat(" where {0}={1}", columns[identityPosition], values[identityPosition].ToString());
+            //    if (returnIdentity)
+            //    {
+            //        sql.AppendFormat("; select {0}", values[identityPosition].ToString());
+            //    }
+            //    return sql.ToString();
+            //}
+
+            if (replaceExists && dialect.ReplaceEnabled)
+            {
+                var keys = dialect.GetPrimaryKeyColumns(table);
+                for (int i = 0; i < columns.Count; i++)
+                    columns[i] = columns[i].ToLower();
+                valuesReplace = new List<object>();
+                if (query != null)
+                {
+                    values.AddRange(query.GetParameters());
+                    query = null;
+                }
+                bool comma = false;
+                if (keys != null && keys.Count > 0)
+                {
+                    //update
+                    sql.AppendFormat("update {0} set ", table);
+                    //set
+                    for (int i = 0; i < columns.Count; i++)
+                        if (identityPosition != i) //!keys.Contains(columns[i])
+                        {
+                            if (comma)
+                                sql.Append(",");
+                            sql.AppendFormat("{0} = ?", columns[i]);
+                            comma = true;
+                            valuesReplace.Add(values[i]);
+                        }
+                    sql.Append(" where ");
+                    comma = false;
+                    for (int i = 0; i < columns.Count; i++)
+                        if (keys.Contains(columns[i]))
+                        {
+                            if (comma)
+                                sql.Append(" and ");
+
+                            sql.AppendFormat("{0} = ?", columns[i]);
+
+                            comma = true;
+
+                            valuesReplace.Add(values[i]);
+                        }
+
+                    sql.AppendLine();
+
+                    sql.Append("if (@@rowcount = 0)");
+                    sql.AppendLine();
+                }
+
+                //insert
+                sql.AppendFormat("insert into {0}", table);
+
+                bool identityInsert = IsIdentityInsert();
+                if (0 < columns.Count)
+                {
+                    sql.Append("(");
+                    for (int i = 0; i < columns.Count; i++)
+                    {
+                        if (identityInsert && identityPosition == i) continue;
+                        sql.AppendFormat("{0},", columns[i]);
+                    }
+                    sql.Remove(sql.Length - 1, 1).Append(")");
+                }
+
+                sql.Append(" values (");
+                for (int i = 0; i < values.Count; i++)
+                {
+                    if (identityInsert && identityPosition == i)
+                    {
+                        continue;
+                    }
+                    sql.Append("?");
+                    valuesReplace.Add(values[i]);
+                    if (i + 1 == values.Count)
+                    {
+                        sql.Append(")");
+                    }
+                    else if (0 < columns.Count && (i + 1) % columns.Count == 0)
+                    {
+                        sql.Append("),(");
+                    }
+                    else
+                    {
+                        sql.Append(",");
+                    }
+                }
+
+                if (returnIdentity)
+                {
+                    sql.AppendFormat("; select {0}", identityInsert ? dialect.IdentityQuery : "?");
+                    if (!identityInsert)
+                        valuesReplace.Add(values[identityPosition]);
+                }
+                return sql.ToString();
+
+            }
 
             if (ignoreExists)
             {
@@ -69,16 +226,16 @@ namespace ASC.Common.Data.Sql
             }
             else
             {
-                sql.Append(replaceExists ? "replace" : "insert");
+                sql.Append(replaceExists && dialect.ReplaceEnabled ? "replace" : "insert");
             }
             sql.AppendFormat(" into {0}", table);
-            bool identityInsert = IsIdentityInsert();
+            bool identityInsertx = IsIdentityInsert();
             if (0 < columns.Count)
             {
                 sql.Append("(");
                 for (int i = 0; i < columns.Count; i++)
                 {
-                    if (identityInsert && identityPosition == i) continue;
+                    if (identityInsertx && identityPosition == i) continue;
                     sql.AppendFormat("{0},", columns[i]);
                 }
                 sql.Remove(sql.Length - 1, 1).Append(")");
@@ -91,7 +248,7 @@ namespace ASC.Common.Data.Sql
             sql.Append(" values (");
             for (int i = 0; i < values.Count; i++)
             {
-                if (identityInsert && identityPosition == i)
+                if (identityInsertx && identityPosition == i)
                 {
                     continue;
                 }
@@ -112,9 +269,14 @@ namespace ASC.Common.Data.Sql
 
             if (returnIdentity)
             {
-                sql.AppendFormat("; select {0}", identityInsert ? dialect.IdentityQuery : "?");
+                sql.AppendFormat("; select {0}", identityInsertx ? dialect.IdentityQuery : "?");
             }
             return sql.ToString();
+        }
+
+        private bool IsUpdate()
+        {
+            return identityPosition >= 0 && values[identityPosition] != null && !Equals(values[identityPosition], nullValue);
         }
 
         public object[] GetParameters()
@@ -123,7 +285,18 @@ namespace ASC.Common.Data.Sql
             {
                 return query.GetParameters();
             }
+
+            if (valuesReplace != null)
+                return valuesReplace.ToArray();
+
             var copy = new List<object>(values);
+
+            if (IsUpdate())
+            {
+                copy.RemoveAt(identityPosition);
+                return copy.ToArray();
+            }
+
             if (IsIdentityInsert())
             {
                 copy.RemoveAt(identityPosition);
